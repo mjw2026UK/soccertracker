@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Soccer Tracker">
+  <meta name="theme-color" content="#1D9E75">
+  <title>Soccer Game Tracker</title>
+
+  <!-- PWA Manifest inline as data URI so it works from a single file -->
+  <link rel="manifest" href="data:application/json,{%22name%22:%22Soccer%20Game%20Tracker%22,%22short_name%22:%22Soccer%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23f5f5f3%22,%22theme_color%22:%22%231D9E75%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20512%20512%27%3E%3Crect%20width%3D%27512%27%20height%3D%27512%27%20rx%3D%27100%27%20fill%3D%27%231D9E75%27%2F%3E%3Ctext%20x%3D%27256%27%20y%3D%27360%27%20font-size%3D%27300%27%20text-anchor%3D%27middle%27%3E%E2%9A%BD%3C%2Ftext%3E%3C%2Fsvg%3E%22,%22sizes%22:%22512x512%22,%22type%22:%22image/svg+xml%22}]}">
+
+  <!-- Apple touch icon via inline SVG -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%231D9E75'/><text x='256' y='360' font-size='300' text-anchor='middle'>⚽</text></svg>">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #1D9E75; --green-light: #E1F5EE; --green-dark: #0F6E56;
+      --red: #E24B4A; --red-light: #FCEBEB; --red-dark: #A32D2D;
+      --blue: #378ADD; --blue-light: #E6F1FB; --blue-dark: #185FA5;
+      --amber: #BA7517; --amber-light: #FAEEDA; --amber-dark: #854F0B;
+      --bg: #f5f5f3; --surface: #fff; --border: #e0e0de;
+      --text: #1a1a1a; --muted: #666; --faint: #aaa;
+      --radius: 12px; --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100%; padding: 1.25rem 1rem;
+      padding-bottom: calc(80px + var(--safe-bottom));
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app { max-width: 680px; margin: 0 auto; }
+
+    /* ── HEADER ── */
+    .app-header { margin-bottom: 1rem; display: flex; align-items: center; gap: 10px; }
+    .app-header-text h1 { font-size: 20px; font-weight: 600; }
+    .app-header-text p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .app-icon { font-size: 28px; flex-shrink: 0; }
+
+    /* ── INSTALL BANNER ── */
+    .install-banner { display: none; align-items: center; gap: 10px; background: var(--green-light);
+      border: 0.5px solid var(--green); border-radius: var(--radius); padding: 10px 14px;
+      margin-bottom: 1rem; font-size: 13px; color: var(--green-dark); }
+    .install-banner.visible { display: flex; }
+    .install-banner-text { flex: 1; line-height: 1.5; }
+    .install-btn-primary { padding: 6px 14px; border-radius: 8px; border: none;
+      background: var(--green); color: #fff; font-size: 13px; font-weight: 500;
+      cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .install-banner-close { background: none; border: none; color: var(--green-dark);
+      font-size: 18px; cursor: pointer; padding: 0 4px; flex-shrink: 0; }
+
+    /* ── DATA BAR ── */
+    .data-bar { background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius); padding: 10px 12px; margin-bottom: 1.25rem; }
+    .data-bar-info { font-size: 12px; color: var(--faint); margin-bottom: 8px; display: block; }
+    .data-bar-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+    .data-btn { display: flex; align-items: center; gap: 5px; padding: 8px 12px;
+      border-radius: 8px; border: 0.5px solid #ccc; background: transparent; color: #444;
+      font-size: 13px; font-family: inherit; cursor: pointer; transition: all 0.15s;
+      white-space: nowrap; min-height: 36px; }
+    .data-btn:active { opacity: 0.7; }
+    .data-btn.export { border-color: var(--green); color: var(--green-dark); }
+    .data-btn.export:active { background: var(--green-light); }
+    .data-btn.email-backup { border-color: var(--blue); color: var(--blue-dark); }
+    .data-btn.email-backup:active { background: var(--blue-light); }
+    .data-btn.import { border-color: #999; color: #555; }
+    .data-btn.import:active { background: var(--bg); }
+    .data-btn.help { border-color: var(--amber); color: var(--amber-dark); }
+    .data-btn.help:active { background: var(--amber-light); }
+    .data-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .import-toast { display: none; font-size: 12px; padding: 6px 12px; border-radius: 8px;
+      background: var(--green-light); color: var(--green-dark); border: 0.5px solid var(--green);
+      margin-top: 8px; line-height: 1.5; }
+    .import-toast.error { background: var(--red-light); color: var(--red-dark); border-color: var(--red); }
+    .import-toast.visible { display: block; }
+    #file-input { display: none; }
+
+    /* ── BOTTOM TABS ── */
+    .tabs-wrap { position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--surface); border-top: 0.5px solid var(--border);
+      padding: 6px 0 calc(6px + var(--safe-bottom)); z-index: 50;
+      display: flex; justify-content: center; }
+    .tabs { display: flex; gap: 0; max-width: 680px; width: 100%; }
+    .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 6px 4px; border: none; background: transparent; cursor: pointer;
+      font-family: inherit; color: var(--faint); transition: color 0.15s; }
+    .tab-icon { font-size: 20px; line-height: 1; }
+    .tab-label { font-size: 10px; font-weight: 500; }
+    .tab.active { color: var(--green); }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ── FORMS ── */
+    .form-section-title { font-size: 11px; font-weight: 600; color: var(--faint);
+      text-transform: uppercase; letter-spacing: 0.06em; margin: 1.25rem 0 0.75rem;
+      padding-bottom: 6px; border-bottom: 0.5px solid var(--border); }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0.75rem; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 13px; color: var(--muted); }
+    input, select, textarea {
+      width: 100%; padding: 10px 12px; border-radius: 10px; border: 0.5px solid #ccc;
+      background: var(--surface); color: var(--text); font-size: 16px; /* 16px prevents iOS zoom */
+      font-family: inherit; outline: none; transition: border-color 0.15s;
+      -webkit-appearance: none; appearance: none; }
+    input:focus, select:focus, textarea:focus { border-color: #888; }
+    select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+    textarea { resize: vertical; min-height: 90px; line-height: 1.5; font-size: 15px; }
+    .star { font-size: 28px; cursor: pointer; color: #ddd; transition: color 0.1s; user-select: none; }
+    .star.on { color: #EF9F27; }
+
+    /* ── SKILL SLIDERS ── */
+    .skill-section { background: #eeecea; border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .skill-section-title { font-size: 13px; font-weight: 500; margin-bottom: 14px; }
+    .skill-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .skill-row:last-child { margin-bottom: 0; }
+    .skill-label { font-size: 13px; color: var(--muted); width: 88px; flex-shrink: 0; }
+    .skill-slider { flex: 1; -webkit-appearance: none; height: 6px; border-radius: 3px;
+      background: #ccc; outline: none; cursor: pointer; }
+    .skill-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px;
+      border-radius: 50%; background: #1a1a1a; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
+    .skill-slider::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%;
+      background: #1a1a1a; cursor: pointer; border: none; }
+    .skill-val { font-size: 15px; font-weight: 600; width: 22px; text-align: right; flex-shrink: 0; }
+
+    /* ── FITNESS ── */
+    .fitness-row { display: flex; gap: 8px; align-items: center; }
+    .fitness-badge { font-size: 12px; padding: 4px 10px; border-radius: 6px; font-weight: 500; display: none; }
+    .fitness-Poor { background: var(--red-light); color: var(--red-dark); }
+    .fitness-OK { background: var(--amber-light); color: var(--amber-dark); }
+    .fitness-Good { background: var(--green-light); color: var(--green-dark); }
+    .fitness-Excellent { background: var(--blue-light); color: var(--blue-dark); }
+
+    /* ── SUBMIT ── */
+    .submit-btn { margin-top: 1.25rem; width: 100%; padding: 14px; border-radius: var(--radius);
+      border: none; background: var(--text); color: #fff; font-size: 16px; font-weight: 600;
+      cursor: pointer; font-family: inherit; }
+    .submit-btn:active { opacity: 0.8; }
+
+    /* ── FILTER BAR ── */
+    .filter-bar { background: #eeecea; border-radius: var(--radius); padding: 12px 14px; margin-bottom: 1.25rem; }
+    .filter-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .preset-btn { padding: 6px 14px; font-size: 13px; border-radius: 8px; border: 0.5px solid #ccc;
+      background: transparent; color: var(--muted); cursor: pointer; font-family: inherit;
+      transition: all 0.15s; min-height: 34px; }
+    .preset-btn.active { background: var(--surface); color: var(--text); border-color: #999; font-weight: 500; }
+    .date-range-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .date-range-row label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .date-range-row input[type="date"] { padding: 6px 10px; font-size: 14px; flex: 1; min-width: 130px; }
+    .filter-summary { font-size: 12px; color: var(--faint); margin-top: 8px; }
+
+    /* ── GAME CARDS ── */
+    .game-card { background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 12px; }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .card-main { cursor: pointer; flex: 1; min-width: 0; }
+    .card-title { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-meta { font-size: 12px; color: var(--faint); margin-top: 3px; }
+    .card-result { font-size: 22px; font-weight: 600; }
+    .result-W { color: #3B6D11; } .result-L { color: var(--red-dark); } .result-D { color: #885000; }
+    .card-tags { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; cursor: pointer; }
+    .tag { font-size: 11px; padding: 3px 8px; border-radius: 8px; background: #eeecea; color: var(--muted); }
+    .tag-fitness-Poor { background: var(--red-light); color: var(--red-dark); }
+    .tag-fitness-OK { background: var(--amber-light); color: var(--amber-dark); }
+    .tag-fitness-Good { background: var(--green-light); color: var(--green-dark); }
+    .tag-fitness-Excellent { background: var(--blue-light); color: var(--blue-dark); }
+    .stars-display { color: #EF9F27; font-size: 13px; }
+    .card-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+    .delete-btn { background: none; border: 0.5px solid #ccc; border-radius: 8px; color: var(--faint);
+      font-size: 12px; padding: 6px 12px; cursor: pointer; font-family: inherit; min-height: 34px; }
+    .delete-btn:active { border-color: var(--red); color: var(--red-dark); background: var(--red-light); }
+    .confirm-row { display: flex; gap: 6px; }
+    .confirm-yes { font-size: 13px; padding: 6px 12px; border-radius: 8px; border: 0.5px solid var(--red);
+      background: var(--red-light); color: var(--red-dark); cursor: pointer; font-family: inherit; min-height: 34px; }
+    .confirm-no { font-size: 13px; padding: 6px 12px; border-radius: 8px; border: 0.5px solid #ccc;
+      background: transparent; color: var(--muted); cursor: pointer; font-family: inherit; min-height: 34px; }
+
+    /* ── EMPTY ── */
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--faint); font-size: 14px; }
+
+    /* ── STATS ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    .stat-card { background: #eeecea; border-radius: 10px; padding: 0.875rem; }
+    .stat-label { font-size: 11px; color: #888; margin-bottom: 2px; }
+    .stat-val { font-size: 22px; font-weight: 600; color: var(--text); }
+    .stat-period { font-size: 10px; color: var(--faint); margin-top: 3px; }
+
+    /* ── DETAIL CARD ── */
+    .detail-card { background: var(--surface); border: 0.5px solid #ccc; border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+    .detail-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+    .detail-row label { font-size: 12px; color: #888; }
+    .detail-row p { font-size: 14px; color: var(--text); line-height: 1.6; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .detail-grid-item { display: flex; flex-direction: column; gap: 4px; }
+    .detail-grid-item label { font-size: 12px; color: #888; }
+    .detail-grid-item p { font-size: 14px; color: var(--text); }
+    .back-btn { font-size: 14px; color: var(--muted); cursor: pointer; border: none; background: none;
+      padding: 0 0 1rem 0; display: flex; align-items: center; gap: 4px; font-family: inherit; min-height: 44px; }
+
+    /* ── SKILL BARS ── */
+    .skill-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .skill-bar-label { font-size: 12px; color: #888; width: 80px; flex-shrink: 0; }
+    .skill-bar-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .skill-bar-fill { height: 100%; border-radius: 3px; background: var(--green); }
+    .skill-bar-num { font-size: 12px; font-weight: 500; color: var(--text); width: 18px; text-align: right; }
+    .skill-bar-row-btn { display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+      cursor: pointer; padding: 8px; border-radius: 8px; transition: background 0.15s; min-height: 44px; }
+    .skill-bar-row-btn:active { background: #eeecea; }
+    .skill-tap-hint { font-size: 11px; color: var(--faint); margin-bottom: 8px; }
+
+    /* ── MODALS ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex;
+      align-items: flex-end; justify-content: center; z-index: 100; padding: 0; }
+    @media (min-width: 500px) { .modal-overlay { align-items: center; padding: 1rem; } }
+    .modal-box { background: var(--surface); border-radius: 20px 20px 0 0; border: 0.5px solid #ccc;
+      padding: 1.5rem; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+    @media (min-width: 500px) { .modal-box { border-radius: 16px; } }
+    .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; }
+    .modal-title { font-size: 16px; font-weight: 600; color: var(--text); line-height: 1.4; }
+    .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--faint);
+      line-height: 1; padding: 0 4px; flex-shrink: 0; min-width: 44px; min-height: 44px;
+      display: flex; align-items: center; justify-content: flex-end; }
+    .chart-wrap { position: relative; height: 200px; width: 100%; }
+    .chart-stats-row { display: flex; gap: 10px; margin-top: 1rem; flex-wrap: wrap; }
+    .chart-stat { flex: 1; min-width: calc(25% - 8px); background: var(--bg); border-radius: 8px; padding: 10px; text-align: center; }
+    .chart-stat-label { font-size: 11px; color: #888; }
+    .chart-stat-val { font-size: 18px; font-weight: 600; margin-top: 2px; color: var(--text); }
+
+    /* ── HELP ── */
+    .help-section { margin-bottom: 1.25rem; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section h3 { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .help-badge { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+    .badge-green { background: var(--green-light); color: var(--green-dark); }
+    .badge-blue { background: var(--blue-light); color: var(--blue-dark); }
+    .badge-purple { background: #ede9fe; color: #5b21b6; }
+    .help-step { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start; }
+    .help-num { width: 24px; height: 24px; border-radius: 50%; background: #eeecea; color: var(--muted);
+      font-size: 12px; font-weight: 500; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px; }
+    .help-text { font-size: 13px; color: #444; line-height: 1.6; }
+    .help-text strong { color: var(--text); font-weight: 500; }
+    .help-divider { border: none; border-top: 0.5px solid var(--border); margin: 1.25rem 0; }
+    .help-tip { background: var(--amber-light); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--amber-dark); line-height: 1.6; }
+    .help-ok-btn { margin-top: 1.25rem; width: 100%; padding: 12px; border-radius: 10px; border: 0.5px solid #ccc; background: #e8e8e6; color: var(--text); font-size: 15px; font-weight: 500; cursor: pointer; font-family: inherit; }
+
+    /* ── WORD CLOUDS ── */
+    .wc-section { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1.5rem; }
+    .wc-title { font-size: 13px; color: #888; display: block; margin-bottom: 1rem; }
+    .wc-filter-bar { background: var(--bg); border-radius: 10px; padding: 10px 12px; margin-bottom: 1rem; }
+    .wc-filter-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .wc-cloud-card { margin-bottom: 1.25rem; }
+    .wc-cloud-card:last-child { margin-bottom: 0; }
+    .wc-cloud-label { font-size: 12px; font-weight: 600; margin-bottom: 6px; letter-spacing: 0.02em; }
+    .wc-canvas-wrap { width: 100%; border-radius: 8px; overflow: hidden; background: #fafaf8; border: 0.5px solid #eee; }
+    .wc-canvas-wrap canvas { display: block; width: 100%; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 420px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .form-group.full { grid-column: 1; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="app-header">
+    <div class="app-icon">⚽</div>
+    <div class="app-header-text">
+      <h1>Soccer tracker</h1>
+      <p>Log matches · track your progress</p>
+    </div>
+  </div>
+
+  <!-- INSTALL BANNER -->
+  <div class="install-banner" id="install-banner">
+    <div class="install-banner-text">
+      <strong>Add to your home screen</strong> to use like an app — works offline too.
+    </div>
+    <button class="install-btn-primary" id="install-btn" onclick="triggerInstall()">Install</button>
+    <button class="install-banner-close" onclick="dismissInstall()">×</button>
+  </div>
+
+  <!-- DATA BAR -->
+  <div class="data-bar">
+    <span class="data-bar-info" id="data-bar-info">Loading...</span>
+    <div class="data-bar-buttons">
+      <button class="data-btn export" onclick="exportData()">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3 12h10"/></svg>Export
+      </button>
+      <button class="data-btn email-backup" onclick="emailBackup()">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="9" rx="1.5"/><path d="M2 5l6 5 6-5"/></svg>Email backup
+      </button>
+      <button class="data-btn import" onclick="document.getElementById('file-input').click()">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10V2M5 5l3-3 3 3M3 12h10"/></svg>Import
+      </button>
+      <button class="data-btn help" onclick="openHelp()">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 11v-1M8 5a1.5 1.5 0 010 3"/></svg>How to save
+      </button>
+    </div>
+    <div class="import-toast" id="import-toast"></div>
+    <input type="file" id="file-input" accept=".json" onchange="importData(event)">
+  </div>
+
+  <!-- SECTIONS -->
+  <div class="section active" id="tab-log">
+    <div class="form-section-title">Match info</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
+      <div class="form-group"><label>My team</label><input type="text" id="f-myteam" placeholder="e.g. Riverside United"></div>
+      <div class="form-group"><label>Opponent</label><input type="text" id="f-opponent" placeholder="e.g. Bay FC"></div>
+      <div class="form-group">
+        <label>Result</label>
+        <select id="f-result">
+          <option value="">Select...</option>
+          <option value="W">Win</option>
+          <option value="D">Draw</option>
+          <option value="L">Loss</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Score</label><input type="text" id="f-score" placeholder="e.g. 3-1"></div>
+      <div class="form-group"><label>Minutes played</label><input type="number" id="f-minutes" placeholder="e.g. 90" min="0" max="120" inputmode="numeric"></div>
+      <div class="form-group"><label>Position played</label><input type="text" id="f-position" placeholder="e.g. Left mid"></div>
+      <div class="form-group">
+        <label>Overall feeling</label>
+        <div style="display:flex;gap:4px;align-items:center;padding-top:4px;" id="stars">
+          <span class="star" data-v="1" onclick="setRating(1)">★</span>
+          <span class="star" data-v="2" onclick="setRating(2)">★</span>
+          <span class="star" data-v="3" onclick="setRating(3)">★</span>
+          <span class="star" data-v="4" onclick="setRating(4)">★</span>
+          <span class="star" data-v="5" onclick="setRating(5)">★</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section-title">Fitness & skills</div>
+    <div class="form-grid" style="margin-bottom:1rem;">
+      <div class="form-group">
+        <label>Fitness level</label>
+        <div class="fitness-row">
+          <select id="f-fitness" onchange="updateFitnessBadge(this.value)" style="flex:1;">
+            <option value="">Select...</option>
+            <option value="Poor">Poor</option>
+            <option value="OK">OK</option>
+            <option value="Good">Good</option>
+            <option value="Excellent">Excellent</option>
+          </select>
+          <span class="fitness-badge" id="fitness-badge"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="skill-section">
+      <div class="skill-section-title">Skill ratings (1–10)</div>
+      <div id="skill-sliders"></div>
+    </div>
+
+    <div class="form-section-title">Review</div>
+    <div class="form-grid">
+      <div class="form-group full"><label>What went well?</label><textarea id="f-well" placeholder="e.g. Good pressing, kept possession well..."></textarea></div>
+      <div class="form-group full"><label>What to improve?</label><textarea id="f-improve" placeholder="e.g. Positioning in the second half..."></textarea></div>
+      <div class="form-group full"><label>Goals & objectives for next game</label><textarea id="f-goals" placeholder="e.g. Make more forward runs..."></textarea></div>
+      <div class="form-group full"><label>Coach's game feedback</label><textarea id="f-notes" placeholder="Feedback from your coach..."></textarea></div>
+    </div>
+    <button class="submit-btn" onclick="saveGame()">Save game review</button>
+  </div>
+
+  <div class="section" id="tab-history">
+    <div class="filter-bar">
+      <div class="filter-presets">
+        <button class="preset-btn active" onclick="setPreset('all',this)">All time</button>
+        <button class="preset-btn" onclick="setPreset('month',this)">This month</button>
+        <button class="preset-btn" onclick="setPreset('3months',this)">3 months</button>
+        <button class="preset-btn" onclick="setPreset('year',this)">This year</button>
+        <button class="preset-btn" onclick="setPreset('custom',this)">Custom</button>
+      </div>
+      <div class="date-range-row" id="custom-range" style="display:none;">
+        <label>From</label><input type="date" id="filter-from" onchange="renderHistory()">
+        <label>to</label><input type="date" id="filter-to" onchange="renderHistory()">
+      </div>
+      <div class="filter-summary" id="filter-summary"></div>
+    </div>
+    <div id="history-list"></div>
+  </div>
+
+  <div class="section" id="tab-progress">
+    <div class="filter-bar">
+      <div class="filter-presets">
+        <button class="preset-btn active" onclick="setPPreset('all',this)">All time</button>
+        <button class="preset-btn" onclick="setPPreset('month',this)">This month</button>
+        <button class="preset-btn" onclick="setPPreset('3months',this)">3 months</button>
+        <button class="preset-btn" onclick="setPPreset('year',this)">This year</button>
+        <button class="preset-btn" onclick="setPPreset('custom',this)">Custom</button>
+      </div>
+      <div class="date-range-row" id="p-custom-range" style="display:none;">
+        <label>From</label><input type="date" id="p-filter-from" onchange="renderProgress()">
+        <label>to</label><input type="date" id="p-filter-to" onchange="renderProgress()">
+      </div>
+      <div class="filter-summary" id="p-filter-summary"></div>
+    </div>
+    <div id="progress-view"></div>
+
+    <div class="wc-section">
+      <span class="wc-title">Word clouds · your review notes</span>
+      <div class="wc-filter-bar">
+        <div class="wc-filter-presets">
+          <button class="preset-btn active" onclick="setWcPreset('all',this)">All time</button>
+          <button class="preset-btn" onclick="setWcPreset('month',this)">This month</button>
+          <button class="preset-btn" onclick="setWcPreset('3months',this)">3 months</button>
+          <button class="preset-btn" onclick="setWcPreset('year',this)">This year</button>
+          <button class="preset-btn" onclick="setWcPreset('custom',this)">Custom</button>
+        </div>
+        <div class="date-range-row" id="wc-custom-range" style="display:none;">
+          <label>From</label><input type="date" id="wc-filter-from" onchange="renderAllWordClouds()">
+          <label>to</label><input type="date" id="wc-filter-to" onchange="renderAllWordClouds()">
+        </div>
+        <div class="filter-summary" id="wc-filter-summary"></div>
+      </div>
+      <div class="wc-cloud-card">
+        <div class="wc-cloud-label" style="color:#0F6E56;">✓ What went well</div>
+        <div class="wc-canvas-wrap"><canvas id="wc-canvas-well" height="200"></canvas></div>
+      </div>
+      <div class="wc-cloud-card">
+        <div class="wc-cloud-label" style="color:#A32D2D;">↑ What to improve</div>
+        <div class="wc-canvas-wrap"><canvas id="wc-canvas-improve" height="200"></canvas></div>
+      </div>
+      <div class="wc-cloud-card">
+        <div class="wc-cloud-label" style="color:#185FA5;">→ Goals for next game</div>
+        <div class="wc-canvas-wrap"><canvas id="wc-canvas-goals" height="200"></canvas></div>
+      </div>
+      <div class="wc-cloud-card">
+        <div class="wc-cloud-label" style="color:#666;">✎ Coach's game feedback</div>
+        <div class="wc-canvas-wrap"><canvas id="wc-canvas-notes" height="200"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM TAB BAR -->
+<div class="tabs-wrap">
+  <div class="tabs">
+    <button class="tab active" id="tab-btn-log" onclick="showTab('log')">
+      <span class="tab-icon">📝</span>
+      <span class="tab-label">Log game</span>
+    </button>
+    <button class="tab" id="tab-btn-history" onclick="showTab('history')">
+      <span class="tab-icon">📋</span>
+      <span class="tab-label">My games</span>
+    </button>
+    <button class="tab" id="tab-btn-progress" onclick="showTab('progress')">
+      <span class="tab-icon">📈</span>
+      <span class="tab-label">Progress</span>
+    </button>
+  </div>
+</div>
+
+<!-- CHART MODAL -->
+<div class="modal-overlay" id="chart-overlay" style="display:none;" onclick="if(event.target===this)closeChart()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="chart-title"></span>
+      <button class="modal-close" onclick="closeChart()">×</button>
+    </div>
+    <div class="chart-wrap"><canvas id="skill-chart"></canvas></div>
+    <div class="chart-stats-row" id="chart-stats"></div>
+  </div>
+</div>
+
+<!-- HELP MODAL -->
+<div class="modal-overlay" id="help-overlay" style="display:none;" onclick="if(event.target===this)closeHelp()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">How to save your data</span>
+      <button class="modal-close" onclick="closeHelp()">×</button>
+    </div>
+    <div class="help-section">
+      <p style="font-size:14px;color:#444;line-height:1.7;margin-bottom:12px;">Your game data is saved in <strong>this browser only</strong>. To keep it safe, back it up regularly using one of the options below.</p>
+      <div class="help-tip">Think of it like saving a document — your data only exists here until you back it up.</div>
+    </div>
+    <hr class="help-divider">
+    <div class="help-section">
+      <h3><span class="help-badge badge-blue">Email backup</span> — easiest on mobile</h3>
+      <div class="help-step"><span class="help-num">1</span><span class="help-text">Tap <strong>Email backup</strong> at the top of the app</span></div>
+      <div class="help-step"><span class="help-num">2</span><span class="help-text">Your Mail app opens with the backup attached and ready to send</span></div>
+      <div class="help-step"><span class="help-num">3</span><span class="help-text">Send it to yourself — it lands in your inbox as a safe copy</span></div>
+      <div class="help-step"><span class="help-num">4</span><span class="help-text">To restore, open that email on any device, tap the attachment, then tap <strong>Import</strong> in the app</span></div>
+    </div>
+    <hr class="help-divider">
+    <div class="help-section">
+      <h3><span class="help-badge badge-green">Export</span> — save to your device</h3>
+      <div class="help-step"><span class="help-num">1</span><span class="help-text">Tap <strong>Export</strong> — a file downloads called <strong>soccer_backup_YYYYMMDD.json</strong></span></div>
+      <div class="help-step"><span class="help-num">2</span><span class="help-text">On iPhone, it saves to the <strong>Files app → Downloads</strong>. Move it to iCloud or share it to be safe</span></div>
+    </div>
+    <hr class="help-divider">
+    <div class="help-section">
+      <h3><span class="help-badge badge-purple">Add to home screen</span> — use it like an app</h3>
+      <div class="help-step"><span class="help-num">1</span><span class="help-text">In Safari, tap the <strong>Share button</strong> (the box with the arrow)</span></div>
+      <div class="help-step"><span class="help-num">2</span><span class="help-text">Scroll down and tap <strong>Add to Home Screen</strong></span></div>
+      <div class="help-step"><span class="help-num">3</span><span class="help-text">Tap <strong>Add</strong> — the app icon appears on your home screen and opens fullscreen</span></div>
+    </div>
+    <button class="help-ok-btn" onclick="closeHelp()">Got it</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── DATA ──────────────────────────────────────────────────
+const SKILLS=['Passing','First touch','Scanning','Tackling','Focus','Desire'];
+const FITNESS_LEVELS=['Poor','OK','Good','Excellent'];
+const OPPONENTS=['Riverside FC','City United','Northside Athletic','Bay FC','Eastside Rangers','Westwood FC','Lakeside SC','Forest Hill FC','Ironbridge United','Hilltop City','Crestview FC','Meadowbrook SC','Harbor United','Summit FC','Valley Athletic'];
+const MY_TEAMS=['Riverside United','Northside FC','City Athletic','Westwood SC','Lakeside United'];
+const POSITIONS=['Left mid','Right mid','Centre mid','Striker','Left back','Right back','Centre back','Attacking mid','Defensive mid'];
+const WELL_OPTS=['Good pressing all game','Kept possession well in tight spaces','Strong in the air','Great movement off the ball','Sharp passing in the final third','Held my position well','Won most of my duels','Controlled the tempo','Tracked runners effectively','Read the game well'];
+const IMPROVE_OPTS=['Need better scanning before receiving','Positioning in the second half dropped','Lost focus after their goal','First touch let me down under pressure','Should have been more aggressive in challenges','Decision-making slowed in the final 20 mins','Need to communicate more with defence','Switch of play was too slow'];
+const GOALS_OPTS=['Make more forward runs','Stay compact when out of possession','Win more second balls','Get more assists','Improve scanning rhythm before receiving','Hold press trigger longer','Be more vocal as organiser','Drive into space more'];
+
+function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function pick(arr){return arr[rnd(0,arr.length-1)];}
+
+function generateGames(){
+  const results=['W','W','W','D','L','L']; const now=new Date(); const gs=[];
+  for(let i=0;i<50;i++){
+    const daysAgo=rnd(0,365); const d=new Date(now); d.setDate(d.getDate()-daysAgo);
+    const dateStr=d.toISOString().split('T')[0]; const result=pick(results);
+    const myG=result==='W'?rnd(1,4):result==='D'?rnd(0,2):rnd(0,1);
+    const thG=result==='L'?rnd(1,4):result==='D'?myG:rnd(0,Math.max(0,myG-1));
+    const skills={}; SKILLS.forEach(s=>{skills[s]=rnd(4,10);});
+    gs.push({id:Date.now()-i*7919+rnd(0,999),date:dateStr,myteam:pick(MY_TEAMS),
+      opponent:pick(OPPONENTS),result,score:`${myG}-${thG}`,position:pick(POSITIONS),
+      minutes:pick([45,60,70,75,80,85,90,90,90]),fitness:pick(FITNESS_LEVELS),
+      rating:rnd(2,5),skills,well:pick(WELL_OPTS),improve:pick(IMPROVE_OPTS),
+      goals:pick(GOALS_OPTS),notes:''});
+  }
+  gs.sort((a,b)=>b.date.localeCompare(a.date)); return gs;
+}
+
+const SK='soccerTrackerGames_v5';
+const HELP_KEY='soccerTrackerHelpSeen3';
+let games=JSON.parse(localStorage.getItem(SK)||'null');
+if(!games){games=generateGames();localStorage.setItem(SK,JSON.stringify(games));}
+
+let currentRating=0,viewingGame=null,hPreset='all',pPreset='all',wcPreset='all',confirmingDelete=null,chartInstance=null;
+let deferredInstallPrompt=null;
+const today=new Date().toISOString().split('T')[0];
+document.getElementById('f-date').value=today;
+document.getElementById('filter-to').value=today;
+document.getElementById('p-filter-to').value=today;
+
+// ── PWA INSTALL ───────────────────────────────────────────
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault(); deferredInstallPrompt=e;
+  if(!localStorage.getItem('installDismissed')){
+    document.getElementById('install-banner').classList.add('visible');
+  }
+});
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('install-banner').classList.remove('visible');
+});
+function triggerInstall(){
+  if(deferredInstallPrompt){deferredInstallPrompt.prompt();deferredInstallPrompt=null;}
+  document.getElementById('install-banner').classList.remove('visible');
+}
+function dismissInstall(){
+  localStorage.setItem('installDismissed','1');
+  document.getElementById('install-banner').classList.remove('visible');
+}
+
+// ── SERVICE WORKER (offline support) ─────────────────────
+if('serviceWorker' in navigator){
+  const swCode=`
+    const CACHE='soccer-tracker-v1';
+    self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll([]))));
+    self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const clone=res.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));return res;}))));
+  `;
+  const blob=new Blob([swCode],{type:'application/javascript'});
+  const swUrl=URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+}
+
+// ── FITNESS BADGE ─────────────────────────────────────────
+function updateFitnessBadge(val){
+  const badge=document.getElementById('fitness-badge');
+  badge.className='fitness-badge';
+  if(!val){badge.style.display='none';return;}
+  badge.classList.add('fitness-'+val);
+  badge.textContent=val; badge.style.display='inline-block';
+}
+
+// ── HELP ──────────────────────────────────────────────────
+function openHelp(){document.getElementById('help-overlay').style.display='flex';}
+function closeHelp(){document.getElementById('help-overlay').style.display='none';}
+if(!localStorage.getItem(HELP_KEY)){localStorage.setItem(HELP_KEY,'1');setTimeout(openHelp,800);}
+
+// ── DATA BAR ──────────────────────────────────────────────
+function updateDataBar(){
+  const el=document.getElementById('data-bar-info');
+  if(!games.length){el.textContent='No games saved yet';return;}
+  const oldest=games[games.length-1].date,newest=games[0].date;
+  el.textContent=`${games.length} game${games.length!==1?'s':''} saved · ${fmtDate(oldest)} – ${fmtDate(newest)}`;
+}
+
+function exportData(){
+  const payload={exported:new Date().toISOString(),version:2,games};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`soccer_backup_${today.replace(/-/g,'')}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast(`Exported ${games.length} games`,false);
+}
+
+function emailBackup(){
+  if(!games.length){showToast('No games to back up yet.',true);return;}
+  const payload={exported:new Date().toISOString(),version:2,games};
+  const json=JSON.stringify(payload,null,2);
+  const dataUri='data:application/json;charset=utf-8,'+encodeURIComponent(json);
+  const subject=encodeURIComponent(`Soccer tracker backup · ${fmtDate(today)}`);
+  const body=encodeURIComponent(
+    `Hi,\n\nAttached is my soccer tracker backup from ${fmtDate(today)} containing ${games.length} game${games.length!==1?'s':''}.\n\nTo restore: open the Soccer Game Tracker app, tap Import, and select this file.\n\nGenerated by Soccer Game Tracker.`
+  );
+  // On iOS Safari, mailto with data URI attachment isn't supported — we fall back to
+  // copying the JSON to clipboard and opening a mailto link with instructions.
+  if(/iPhone|iPad|iPod/.test(navigator.userAgent)){
+    navigator.clipboard.writeText(json).then(()=>{
+      const mailto=`mailto:?subject=${subject}&body=${encodeURIComponent('Your backup JSON has been copied to your clipboard.\n\nPaste it into this email and save it.\n\nAlternatively use the Export button to download the .json file, then attach it manually.')}`;
+      window.location.href=mailto;
+      showToast('JSON copied to clipboard — paste it into the email',false);
+    }).catch(()=>{
+      showToast('On iPhone, use Export then share the file via Mail.',false);
+    });
+  } else {
+    window.location.href=`mailto:?subject=${subject}&body=${body}`;
+    showToast('Opening your mail app…',false);
+  }
+}
+
+function importData(e){
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const parsed=JSON.parse(ev.target.result);
+      let imported=Array.isArray(parsed)?parsed:(parsed.games&&Array.isArray(parsed.games)?parsed.games:null);
+      if(!imported)throw new Error('Unrecognised file format');
+      if(!imported.length)throw new Error('File contains no games');
+      const existingIds=new Set(games.map(g=>g.id));
+      const newGames=imported.filter(g=>!existingIds.has(g.id));
+      games=[...games,...newGames].sort((a,b)=>b.date.localeCompare(a.date));
+      save(); updateDataBar();
+      showToast(`Imported ${newGames.length} new game${newGames.length!==1?'s':''} · ${imported.length-newGames.length} already existed`,false);
+      renderHistory();
+    }catch(err){showToast('Import failed: '+err.message,true);}
+    e.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+function showToast(msg,isError){
+  const el=document.getElementById('import-toast');
+  el.textContent=msg; el.className='import-toast'+(isError?' error':'')+' visible';
+  setTimeout(()=>el.classList.remove('visible'),5000);
+}
+
+// ── SLIDERS ───────────────────────────────────────────────
+function buildSliders(){
+  document.getElementById('skill-sliders').innerHTML=SKILLS.map(s=>{
+    const id=s.replace(/ /g,'-');
+    return`<div class="skill-row"><span class="skill-label">${s}</span><input class="skill-slider" type="range" min="1" max="10" value="5" step="1" id="sk-${id}" oninput="document.getElementById('sv-${id}').textContent=this.value"><span class="skill-val" id="sv-${id}">5</span></div>`;
+  }).join('');
+}
+buildSliders();
+function getSkillValues(){const o={};SKILLS.forEach(s=>{o[s]=parseInt(document.getElementById('sk-'+s.replace(/ /g,'-')).value);});return o;}
+function resetSliders(){SKILLS.forEach(s=>{const id=s.replace(/ /g,'-');document.getElementById('sk-'+id).value=5;document.getElementById('sv-'+id).textContent='5';});}
+function setRating(v){currentRating=v;document.querySelectorAll('#stars .star').forEach(s=>s.classList.toggle('on',parseInt(s.dataset.v)<=v));}
+
+// ── TABS ──────────────────────────────────────────────────
+function showTab(t){
+  ['log','history','progress'].forEach(name=>{
+    document.getElementById('tab-'+name).classList.toggle('active',name===t);
+    document.getElementById('tab-btn-'+name).classList.toggle('active',name===t);
+  });
+  if(t==='history'){confirmingDelete=null;renderHistory();}
+  if(t==='progress'){renderProgress();setTimeout(renderAllWordClouds,80);}
+}
+
+// ── SAVE / DELETE ─────────────────────────────────────────
+function save(){localStorage.setItem(SK,JSON.stringify(games));updateDataBar();}
+
+function saveGame(){
+  const game={
+    id:Date.now(),
+    date:document.getElementById('f-date').value,
+    myteam:document.getElementById('f-myteam').value,
+    opponent:document.getElementById('f-opponent').value||'Unknown opponent',
+    result:document.getElementById('f-result').value,
+    score:document.getElementById('f-score').value,
+    minutes:document.getElementById('f-minutes').value,
+    position:document.getElementById('f-position').value,
+    fitness:document.getElementById('f-fitness').value,
+    rating:currentRating,skills:getSkillValues(),
+    well:document.getElementById('f-well').value,
+    improve:document.getElementById('f-improve').value,
+    goals:document.getElementById('f-goals').value,
+    notes:document.getElementById('f-notes').value
+  };
+  games.unshift(game); save();
+  ['f-myteam','f-opponent','f-score','f-minutes','f-position','f-well','f-improve','f-goals','f-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-result').value='';
+  document.getElementById('f-fitness').value='';
+  document.getElementById('f-date').value=today;
+  updateFitnessBadge(''); setRating(0); resetSliders(); viewingGame=null; confirmingDelete=null;
+  showTab('history');
+}
+
+function deleteGame(id){games=games.filter(g=>g.id!==id);save();confirmingDelete=null;viewingGame=null;renderHistory();}
+
+// ── FILTERS ───────────────────────────────────────────────
+function getDateRange(preset,fromId,toId){
+  const now=new Date();
+  if(preset==='all')return{from:null,to:null};
+  if(preset==='month')return{from:new Date(now.getFullYear(),now.getMonth(),1).toISOString().split('T')[0],to:today};
+  if(preset==='3months'){const f=new Date(now);f.setMonth(f.getMonth()-3);return{from:f.toISOString().split('T')[0],to:today};}
+  if(preset==='year')return{from:`${now.getFullYear()}-01-01`,to:today};
+  if(preset==='custom')return{from:document.getElementById(fromId).value,to:document.getElementById(toId).value};
+  return{from:null,to:null};
+}
+function filterGames(preset,fromId,toId){
+  const{from,to}=getDateRange(preset,fromId,toId);
+  if(!from&&!to)return games;
+  return games.filter(g=>{if(!g.date)return false;if(from&&g.date<from)return false;if(to&&g.date>to)return false;return true;});
+}
+function periodLabel(p){if(p==='all')return'all time';if(p==='month')return'this month';if(p==='3months')return'last 3 months';if(p==='year')return'this year';return'custom period';}
+function summaryText(preset,filtered,fromId,toId){
+  const n=filtered.length,s=n!==1?'s':'';
+  if(preset==='all')return`Showing all ${n} game${s}`;
+  if(preset==='month')return`This month · ${n} game${s}`;
+  if(preset==='3months')return`Last 3 months · ${n} game${s}`;
+  if(preset==='year')return`This year · ${n} game${s}`;
+  if(preset==='custom'){const{from,to}=getDateRange(preset,fromId,toId);const fmt=d=>d?new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'–';return`${fmt(from)} – ${fmt(to)} · ${n} game${s}`;}
+  return'';
+}
+function setPreset(p,btn){hPreset=p;document.querySelectorAll('#tab-history .preset-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');document.getElementById('custom-range').style.display=p==='custom'?'flex':'none';viewingGame=null;confirmingDelete=null;renderHistory();}
+function setPPreset(p,btn){pPreset=p;document.querySelectorAll('#tab-progress .filter-bar .preset-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');document.getElementById('p-custom-range').style.display=p==='custom'?'flex':'none';renderProgress();}
+
+// ── HELPERS ───────────────────────────────────────────────
+function fmtDate(d){return d?new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):''}
+function fmtDateLong(d){return d?new Date(d).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):''}
+function fitnessBadgeHtml(f){if(!f)return'';return`<span class="tag tag-fitness-${f}">${f} fitness</span>`;}
+function skillBars(skills){
+  if(!skills)return'';
+  return'<div style="margin-top:8px;">'+SKILLS.map(s=>{const v=skills[s]||0;return`<div class="skill-bar-row"><span class="skill-bar-label">${s}</span><div class="skill-bar-track"><div class="skill-bar-fill" style="width:${Math.round((v/10)*100)}%"></div></div><span class="skill-bar-num">${v}</span></div>`;}).join('')+'</div>';
+}
+
+// ── CHART ─────────────────────────────────────────────────
+function openChart(skillName,filtered){
+  const pts=[...filtered].filter(g=>g.skills&&g.skills[skillName]!=null).sort((a,b)=>a.date.localeCompare(b.date));
+  if(pts.length<2){alert('Not enough data points for this skill in the selected period.');return;}
+  document.getElementById('chart-title').textContent=skillName+' — progress over time';
+  document.getElementById('chart-overlay').style.display='flex';
+  const labels=pts.map(g=>fmtDate(g.date)),values=pts.map(g=>g.skills[skillName]);
+  const avg=(values.reduce((a,b)=>a+b,0)/values.length).toFixed(1);
+  const trend=values[values.length-1]-values[0],best=Math.max(...values),worst=Math.min(...values);
+  document.getElementById('chart-stats').innerHTML=`
+    <div class="chart-stat"><div class="chart-stat-label">Average</div><div class="chart-stat-val">${avg}</div></div>
+    <div class="chart-stat"><div class="chart-stat-label">Best</div><div class="chart-stat-val" style="color:#3B6D11">${best}</div></div>
+    <div class="chart-stat"><div class="chart-stat-label">Lowest</div><div class="chart-stat-val" style="color:#A32D2D">${worst}</div></div>
+    <div class="chart-stat"><div class="chart-stat-label">Trend</div><div class="chart-stat-val" style="color:${trend>0?'#3B6D11':trend<0?'#A32D2D':'#888'}">${trend>0?'+':''}${trend.toFixed(1)}</div></div>`;
+  if(chartInstance)chartInstance.destroy();
+  chartInstance=new Chart(document.getElementById('skill-chart').getContext('2d'),{
+    type:'line',
+    data:{labels,datasets:[{data:values,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',borderWidth:2,pointBackgroundColor:'#1D9E75',pointRadius:4,tension:0.3,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:10,ticks:{stepSize:2}},x:{ticks:{maxTicksLimit:6,maxRotation:0}}},plugins:{legend:{display:false}}}
+  });
+}
+function closeChart(){document.getElementById('chart-overlay').style.display='none';if(chartInstance){chartInstance.destroy();chartInstance=null;}}
+
+// ── HISTORY ───────────────────────────────────────────────
+function renderHistory(){
+  const el=document.getElementById('history-list');
+  if(viewingGame!==null){renderDetail(viewingGame);return;}
+  const filtered=filterGames(hPreset,'filter-from','filter-to');
+  document.getElementById('filter-summary').textContent=summaryText(hPreset,filtered,'filter-from','filter-to');
+  if(!games.length){el.innerHTML=`<div class="empty-state"><p>No games logged yet.</p><p style="margin-top:8px;font-size:13px;">Tap Log game to add your first match.</p></div>`;return;}
+  if(!filtered.length){el.innerHTML=`<div class="empty-state"><p>No games found in this period.</p></div>`;return;}
+  el.innerHTML=filtered.map((g,i)=>{
+    const idx=games.indexOf(g);
+    const vs=g.myteam?`${g.myteam} vs ${g.opponent}`:g.opponent;
+    const tags=[];
+    if(g.fitness)tags.push(`<span class="tag tag-fitness-${g.fitness}">${g.fitness} fitness</span>`);
+    if(g.position)tags.push(`<span class="tag">${g.position}</span>`);
+    if(g.minutes)tags.push(`<span class="tag">${g.minutes} mins</span>`);
+    const isConfirming=confirmingDelete===g.id;
+    return`<div class="game-card">
+      <div class="card-top">
+        <div class="card-main" onclick="viewGame(${idx})">
+          <div class="card-title">${vs}</div>
+          <div class="card-meta">${fmtDate(g.date)}${g.score?' · '+g.score:''}</div>
+        </div>
+        <div class="card-actions">
+          <div style="text-align:right;">
+            <div class="card-result result-${g.result}">${g.result||'–'}</div>
+            <div class="stars-display">${g.rating?'★'.repeat(g.rating):'–'}</div>
+          </div>
+          ${isConfirming
+            ?`<div class="confirm-row"><button class="confirm-yes" onclick="deleteGame(${g.id})">Delete</button><button class="confirm-no" onclick="confirmingDelete=null;renderHistory()">Cancel</button></div>`
+            :`<button class="delete-btn" onclick="confirmingDelete=${g.id};renderHistory()">Delete</button>`}
+        </div>
+      </div>
+      ${tags.length?`<div class="card-tags" onclick="viewGame(${idx})">${tags.join('')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function viewGame(i){viewingGame=i;confirmingDelete=null;renderDetail(i);}
+function renderDetail(i){
+  const g=games[i];
+  const vs=g.myteam?`${g.myteam} vs ${g.opponent}`:g.opponent;
+  document.getElementById('history-list').innerHTML=`
+    <button class="back-btn" onclick="viewingGame=null;confirmingDelete=null;renderHistory()">← Back</button>
+    <div class="detail-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+        <div><p style="font-weight:600;font-size:16px;">${vs}</p><p class="card-meta">${fmtDateLong(g.date)}</p></div>
+        <div style="text-align:right;"><div class="card-result result-${g.result}" style="font-size:20px;">${g.result||'–'}${g.score?' · '+g.score:''}</div><div class="stars-display">${g.rating?'★'.repeat(g.rating)+'☆'.repeat(5-g.rating):'No rating'}</div></div>
+      </div>
+      <div class="detail-grid">
+        ${g.position?`<div class="detail-grid-item"><label>Position</label><p>${g.position}</p></div>`:''}
+        ${g.minutes?`<div class="detail-grid-item"><label>Minutes played</label><p>${g.minutes} mins</p></div>`:''}
+        ${g.fitness?`<div class="detail-grid-item"><label>Fitness level</label><p>${fitnessBadgeHtml(g.fitness)}</p></div>`:''}
+      </div>
+      ${g.skills?`<div class="detail-row"><label>Skill ratings</label>${skillBars(g.skills)}</div>`:''}
+      ${g.well?`<div class="detail-row"><label>What went well</label><p>${g.well}</p></div>`:''}
+      ${g.improve?`<div class="detail-row"><label>What to improve</label><p>${g.improve}</p></div>`:''}
+      ${g.goals?`<div class="detail-row"><label>Goals for next game</label><p>${g.goals}</p></div>`:''}
+      ${g.notes?`<div class="detail-row"><label>Coach's game feedback</label><p>${g.notes}</p></div>`:''}
+      <div style="margin-top:1rem;padding-top:1rem;border-top:0.5px solid var(--border);">
+        <button class="delete-btn" onclick="confirmingDelete=${g.id};viewingGame=null;renderHistory()">Remove this entry</button>
+      </div>
+    </div>`;
+}
+
+// ── PROGRESS ──────────────────────────────────────────────
+function renderProgress(){
+  const el=document.getElementById('progress-view');
+  const filtered=filterGames(pPreset,'p-filter-from','p-filter-to');
+  document.getElementById('p-filter-summary').textContent=summaryText(pPreset,filtered,'p-filter-from','p-filter-to');
+  if(!games.length){el.innerHTML=`<div class="empty-state"><p>Log some games to see your progress here.</p></div>`;return;}
+  if(!filtered.length){el.innerHTML=`<div class="empty-state"><p>No games found in this period.</p></div>`;return;}
+
+  const w=filtered.filter(g=>g.result==='W').length,d=filtered.filter(g=>g.result==='D').length,l=filtered.filter(g=>g.result==='L').length;
+  const rated=filtered.filter(g=>g.rating>0);
+  const avgRating=rated.length?(rated.reduce((s,g)=>s+g.rating,0)/rated.length).toFixed(1):'–';
+  const winPct=filtered.length?Math.round((w/filtered.length)*100):0;
+  const pl=periodLabel(pPreset);
+  const withMins=filtered.filter(g=>g.minutes&&parseInt(g.minutes)>0);
+  const totalMins=withMins.reduce((s,g)=>s+parseInt(g.minutes),0);
+  const avgMins=withMins.length?Math.round(totalMins/withMins.length):null;
+
+  const withFitness=filtered.filter(g=>g.fitness);
+  let fitnessSection='';
+  if(withFitness.length){
+    const counts={Poor:0,OK:0,Good:0,Excellent:0};
+    withFitness.forEach(g=>{if(counts[g.fitness]!==undefined)counts[g.fitness]++;});
+    const colors={Poor:'#E24B4A',OK:'#BA7517',Good:'#1D9E75',Excellent:'#185FA5'};
+    fitnessSection=`<div style="margin-bottom:1.5rem;"><p style="font-size:13px;color:#888;margin-bottom:10px;">Fitness levels · ${pl}</p><div style="display:flex;gap:8px;flex-wrap:wrap;">${FITNESS_LEVELS.map(f=>{const pct=withFitness.length?Math.round((counts[f]/withFitness.length)*100):0;return`<div style="flex:1;min-width:80px;background:#f5f5f3;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#888;margin-bottom:4px;">${f}</div><div style="font-size:20px;font-weight:600;color:${colors[f]};">${counts[f]}</div><div style="font-size:10px;color:#aaa;">${pct}%</div></div>`;}).join('')}</div></div>`;
+  }
+
+  const withSkills=filtered.filter(g=>g.skills);
+  let skillSection='';
+  if(withSkills.length){
+    const avgs={};SKILLS.forEach(s=>{const vals=withSkills.map(g=>g.skills[s]||0);avgs[s]=vals.reduce((a,b)=>a+b,0)/vals.length;});
+    const best=SKILLS.reduce((a,b)=>avgs[a]>=avgs[b]?a:b),weakest=SKILLS.reduce((a,b)=>avgs[a]<=avgs[b]?a:b);
+    window._currentFiltered=filtered;
+    skillSection=`<div style="margin-bottom:1.5rem;"><p style="font-size:13px;color:#888;margin-bottom:4px;">Average skill ratings · <span style="color:#bbb;">${pl}</span></p><p class="skill-tap-hint">Tap any skill to see your progress chart</p>${SKILLS.map(s=>{const avg=avgs[s],pct=Math.round((avg/10)*100),col=s===best?'#3B6D11':s===weakest?'#E24B4A':'#1D9E75';return`<div class="skill-bar-row-btn" onclick="openChart('${s}',window._currentFiltered)"><span style="font-size:13px;color:#666;width:90px;flex-shrink:0;">${s}</span><div style="flex:1;height:8px;background:#e0e0de;border-radius:4px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:4px;"></div></div><span style="font-size:13px;font-weight:600;color:#1a1a1a;width:28px;text-align:right;">${avg.toFixed(1)}</span><span style="font-size:11px;color:#bbb;margin-left:4px;">↗</span></div>`;}).join('')}<p style="font-size:12px;color:#888;margin-top:6px;">Strongest: <strong>${best}</strong> · Focus area: <strong>${weakest}</strong></p></div>`;
+  }
+
+  const recent=[...filtered].reverse().slice(-8);
+  let sparkline='';
+  if(recent.length>1){
+    const bars=recent.map(g=>{const h=g.rating?Math.round((g.rating/5)*60):20,col=g.result==='W'?'#639922':g.result==='L'?'#E24B4A':'#BA7517';return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:100%;max-width:28px;height:${h}px;background:${col};border-radius:4px 4px 0 0;"></div><span style="font-size:10px;color:#888;">${g.result||'?'}</span></div>`;}).join('');
+    sparkline=`<div style="background:#eeecea;border-radius:8px;padding:1rem;margin-bottom:1.5rem;"><p style="font-size:12px;color:#888;margin-bottom:12px;">Recent results · ${pl}</p><div style="display:flex;align-items:flex-end;gap:6px;height:80px;">${bars}</div></div>`;
+  }
+
+  const objectives=filtered.filter(g=>g.goals).slice(0,3);
+  el.innerHTML=`
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Games</div><div class="stat-val">${filtered.length}</div><div class="stat-period">${pl}</div></div>
+      <div class="stat-card"><div class="stat-label">Win rate</div><div class="stat-val">${winPct}%</div><div class="stat-period">${pl}</div></div>
+      <div class="stat-card"><div class="stat-label">W / D / L</div><div class="stat-val" style="font-size:16px;">${w}/${d}/${l}</div><div class="stat-period">${pl}</div></div>
+      <div class="stat-card"><div class="stat-label">Avg feeling</div><div class="stat-val">${avgRating} <span style="font-size:14px;color:#EF9F27;">★</span></div><div class="stat-period">${pl}</div></div>
+      ${avgMins!==null?`<div class="stat-card"><div class="stat-label">Avg mins</div><div class="stat-val">${avgMins}'</div><div class="stat-period">${pl}</div></div>`:''}
+      ${totalMins>0?`<div class="stat-card"><div class="stat-label">Total mins</div><div class="stat-val">${totalMins}'</div><div class="stat-period">${pl}</div></div>`:''}
+    </div>
+    ${fitnessSection}${skillSection}${sparkline}
+    <div style="margin-bottom:1.5rem;">
+      <p style="font-size:13px;color:#888;margin-bottom:8px;">Recent objectives · ${pl}</p>
+      ${objectives.length?objectives.map(g=>`<div style="padding:8px 0;border-bottom:0.5px solid var(--border);"><p style="font-size:13px;font-weight:500;">${g.myteam?g.myteam+' vs ':''} ${g.opponent}</p><p style="font-size:13px;color:#666;">${g.goals}</p></div>`).join(''):'<p style="font-size:13px;color:#888;">No objectives logged yet.</p>'}
+    </div>`;
+}
+
+// ── WORD CLOUDS ───────────────────────────────────────────
+const WC_STOPWORDS=new Set(['a','an','the','and','or','but','in','on','at','to','for','of','with','by','from','up','about','into','through','during','i','my','me','we','our','you','your','it','its','this','that','these','those','is','was','were','are','be','been','being','have','has','had','do','did','does','will','would','could','should','may','might','not','no','so','if','as','than','then','when','where','which','who','what','how','more','some','all','just','too','very','really','also','well','good','better','after','before','first','second','half','game','games','match','played','play','need','needs','get','got','make','made','keep','kept','try','tried','went','going','go','came','come','felt','feel','think','thought','he','she','they','them','their','there','here','can','cant','im','ive','id','dont','didnt','wasnt','weren','wasn','couldn','couldnt','much','lot','bit','still','even','back','over','off','out','down','again','away','always','never','every','each']);
+const WC_CONFIGS=[
+  {id:'wc-canvas-well',field:'well',hi:'#1D9E75',mid:'#5BC49A',lo:'#b2e0ce'},
+  {id:'wc-canvas-improve',field:'improve',hi:'#E24B4A',mid:'#e88180',lo:'#f5c5c5'},
+  {id:'wc-canvas-goals',field:'goals',hi:'#378ADD',mid:'#7ab0e8',lo:'#c2d9f5'},
+  {id:'wc-canvas-notes',field:'notes',hi:'#888',mid:'#aaa',lo:'#ccc'},
+];
+
+function setWcPreset(p,btn){
+  wcPreset=p;
+  document.querySelectorAll('#tab-progress .wc-filter-presets .preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('wc-custom-range').style.display=p==='custom'?'flex':'none';
+  renderAllWordClouds();
+}
+
+function getWcWords(filtered,field){
+  const freq={};
+  filtered.forEach(g=>{
+    const text=g[field]||'';if(!text.trim())return;
+    text.toLowerCase().replace(/[^a-z\s'-]/g,' ').split(/\s+/)
+      .map(w=>w.replace(/^['-]+|['-]+$/g,'')).filter(w=>w.length>2&&!WC_STOPWORDS.has(w))
+      .forEach(w=>{freq[w]=(freq[w]||0)+1;});
+  });
+  return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,50);
+}
+
+function drawWordCloud(canvasId,words,hi,mid,lo){
+  const canvas=document.getElementById(canvasId);if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.parentElement.clientWidth||360;const H=200;
+  canvas.width=W;canvas.height=H;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#fafaf8';ctx.fillRect(0,0,W,H);
+  if(!words.length){ctx.fillStyle='#ccc';ctx.font='13px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillText('No entries for this period.',W/2,H/2);return;}
+  const maxCount=words[0][1],minCount=words[words.length-1][1],countRange=Math.max(1,maxCount-minCount);
+  function getColor(c){const t=(c-minCount)/countRange;return t>0.6?hi:t>0.25?mid:lo;}
+  function getFontSize(c){return Math.round(10+(((c-minCount)/countRange)*24));}
+  const placed=[];
+  function overlaps(x,y,w,h){const p=5;for(const q of placed){if(x-p<q.x+q.w&&x+w+p>q.x&&y-p<q.y+q.h&&y+h+p>q.y)return true;}return false;}
+  function tryPlace(word,fs){
+    ctx.font=`${fs}px -apple-system,BlinkMacSystemFont,sans-serif`;
+    const tw=ctx.measureText(word).width,th=fs,cx=W/2,cy=H/2;
+    for(let r=0;r<Math.max(W,H);r+=4){
+      for(let a=0;a<Math.PI*2;a+=0.3){
+        const x=cx+r*Math.cos(a)-tw/2,y=cy+r*Math.sin(a)-th/2;
+        if(x<4||x+tw>W-4||y<6||y+th>H-4)continue;
+        if(!overlaps(x,y,tw,th)){placed.push({x,y,w:tw,h:th});return{x,y};}
+      }
+    }return null;
+  }
+  words.forEach(([word,count])=>{
+    const fs=getFontSize(count),pos=tryPlace(word,fs);if(!pos)return;
+    ctx.font=`${count===maxCount?'bold ':''}${fs}px -apple-system,BlinkMacSystemFont,sans-serif`;
+    ctx.fillStyle=getColor(count);ctx.textAlign='left';
+    ctx.fillText(word,pos.x,pos.y+fs*0.85);
+  });
+}
+
+function renderAllWordClouds(){
+  const filtered=filterGames(wcPreset,'wc-filter-from','wc-filter-to');
+  document.getElementById('wc-filter-summary').textContent=summaryText(wcPreset,filtered,'wc-filter-from','wc-filter-to');
+  WC_CONFIGS.forEach(cfg=>{drawWordCloud(cfg.id,getWcWords(filtered,cfg.field),cfg.hi,cfg.mid,cfg.lo);});
+}
+
+// ── INIT ──────────────────────────────────────────────────
+updateDataBar();
+renderHistory();
+</script>
+</body>
+</html>
