@@ -60,16 +60,23 @@
     .star.on { color: #EF9F27; }
     .form-section-title { font-size: 12px; font-weight: 500; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; margin: 1.25rem 0 0.75rem; padding-bottom: 6px; border-bottom: 0.5px solid #e0e0de; }
 
-    /* Skill sliders */
+    /* Skill ratings */
     .skill-section { background: #eeecea; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
     .skill-section-title { font-size: 13px; font-weight: 500; margin-bottom: 14px; }
-    .skill-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-    .skill-row:last-child { margin-bottom: 0; }
-    .skill-label { font-size: 13px; color: #666; width: 90px; flex-shrink: 0; }
-    .skill-slider { flex: 1; -webkit-appearance: none; height: 4px; border-radius: 2px; background: #ccc; outline: none; cursor: pointer; }
-    .skill-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #1a1a1a; cursor: pointer; }
-    .skill-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #1a1a1a; cursor: pointer; border: none; }
-    .skill-val { font-size: 14px; font-weight: 500; width: 20px; text-align: right; flex-shrink: 0; }
+    .skill-block { margin-bottom: 12px; }
+    .skill-block:last-child { margin-bottom: 0; }
+    .skill-block-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+    .skill-label { font-size: 13px; color: #555; font-weight: 500; }
+    .skill-val { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+    .skill-btns { display: flex; gap: 4px; }
+    .snum { flex: 1; padding: 7px 0; border-radius: 6px; border: 0.5px solid #ccc; background: #fff; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; color: #888; text-align: center; transition: all 0.1s; }
+    .snum:hover { border-color: #999; color: #1a1a1a; }
+    .snum.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+    /* Keep .skill-row for training intensity slider */
+    .skill-row { display: flex; align-items: center; gap: 12px; }
+    .skill-slider { flex: 1; -webkit-appearance: none; height: 6px; border-radius: 3px; background: #ccc; outline: none; cursor: pointer; }
+    .skill-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #1a1a1a; cursor: pointer; }
+    .skill-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #1a1a1a; cursor: pointer; border: none; }
 
     /* Fitness */
     .fitness-row { display: flex; gap: 8px; align-items: center; }
@@ -803,15 +810,35 @@ function setLogMode(m) {
   document.getElementById('log-train-form').style.display=m==='training'?'':'none';
 }
 
-// ── SLIDERS ───────────────────────────────────────────────
+// ── SKILL RATINGS ─────────────────────────────────────────
 function buildSliders() {
-  document.getElementById('skill-sliders').innerHTML=SKILLS.map(s=>{
-    const id=s.replace(' ','-');
-    return `<div class="skill-row"><span class="skill-label">${s}</span><input class="skill-slider" type="range" min="1" max="10" value="5" step="1" id="sk-${id}" oninput="document.getElementById('sv-${id}').textContent=this.value"><span class="skill-val" id="sv-${id}">5</span></div>`;
+  document.getElementById('skill-sliders').innerHTML = SKILLS.map(s => {
+    const id = s.replace(' ', '-');
+    const btns = [1,2,3,4,5,6,7,8,9,10].map(n =>
+      `<button class="snum${n===5?' active':''}" onclick="pickSkill('${id}',${n})">${n}</button>`
+    ).join('');
+    return `<div class="skill-block">
+      <div class="skill-block-header">
+        <span class="skill-label">${s}</span>
+        <span class="skill-val" id="sv-${id}">5 / 10</span>
+      </div>
+      <div class="skill-btns" id="sr-${id}">${btns}</div>
+    </div>`;
   }).join('');
 }
-function getSkillValues(){const o={};SKILLS.forEach(s=>{o[s]=parseInt(document.getElementById('sk-'+s.replace(' ','-')).value);});return o;}
-function resetSliders(){SKILLS.forEach(s=>{const id=s.replace(' ','-');document.getElementById('sk-'+id).value=5;document.getElementById('sv-'+id).textContent='5';});}
+function pickSkill(id, val) {
+  document.querySelectorAll(`#sr-${id} .snum`).forEach(b => b.classList.toggle('active', parseInt(b.textContent) === val));
+  document.getElementById('sv-'+id).textContent = val + ' / 10';
+}
+function getSkillValues() {
+  const o = {};
+  SKILLS.forEach(s => {
+    const id = s.replace(' ', '-');
+    o[s] = parseInt(document.getElementById('sv-'+id).textContent) || 5;
+  });
+  return o;
+}
+function resetSliders() { SKILLS.forEach(s => pickSkill(s.replace(' ','-'), 5)); }
 
 let currentRating=0;
 function setRating(v){currentRating=v;document.querySelectorAll('#stars .star').forEach(s=>s.classList.toggle('on',parseInt(s.dataset.v)<=v));}
