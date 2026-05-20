@@ -220,6 +220,20 @@
     .help-divider { border: none; border-top: 0.5px solid #e0e0de; margin: 1.25rem 0; }
     .help-tip { background: #FAEEDA; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #854F0B; line-height: 1.6; }
 
+    /* Drill checklist */
+    .drill-section { background: #eeecea; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .drill-section-title { font-size: 13px; font-weight: 500; margin-bottom: 12px; color: #1a1a1a; }
+    .drill-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 0.5px solid #e0e0de; }
+    .drill-row:last-child { border-bottom: none; }
+    .drill-cb { width: 18px; height: 18px; accent-color: #1D9E75; cursor: pointer; flex-shrink: 0; }
+    .drill-label { flex: 1; font-size: 14px; color: #444; cursor: pointer; user-select: none; }
+    .drill-label.checked { color: #1a1a1a; font-weight: 500; }
+    .drill-min-wrap { display: none; align-items: center; gap: 4px; flex-shrink: 0; }
+    .drill-min-wrap.visible { display: flex; }
+    .drill-min-input { width: 58px; padding: 4px 6px; border-radius: 6px; border: 0.5px solid #ccc; background: #fff; font-size: 13px; font-family: inherit; text-align: center; outline: none; }
+    .drill-min-input:focus { border-color: #999; }
+    .drill-min-label { font-size: 12px; color: #888; }
+
     @media (max-width: 480px) {
       .form-grid { grid-template-columns: 1fr; }
       .form-group.full { grid-column: 1; }
@@ -362,8 +376,11 @@
           </div>
         </div>
       </div>
+      <div class="drill-section">
+        <div class="drill-section-title">Drills completed</div>
+        <div id="drill-list"></div>
+      </div>
       <div class="form-grid">
-        <div class="form-group full"><label>Drills & focus areas</label><textarea id="t-drills" placeholder="e.g. Passing patterns, 1v1 defending, crossing..."></textarea></div>
         <div class="form-group full"><label>What I worked on</label><textarea id="t-worked" placeholder="e.g. Sharpened first touch, worked on weak foot..."></textarea></div>
         <div class="form-group full"><label>Coach's feedback</label><textarea id="t-coach" placeholder="What your coach said..."></textarea></div>
         <div class="form-group full"><label>Personal notes</label><textarea id="t-personal" placeholder="How you felt, what clicked or didn't..."></textarea></div>
@@ -546,6 +563,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 const SKILLS = ['Passing','First touch','Scanning','Tackling','Focus','Desire'];
+const DRILLS = ['Juggling','Wall ball','Shooting','Speed','Stamina','Agility','Passing','Dribbling','First touch','Heading','Set pieces','Stretching'];
 const FITNESS_LEVELS = ['Poor','OK','Good','Excellent'];
 const AVATAR_COLORS = ['#1D9E75','#378ADD','#E2694A','#BA7517','#8B5CF6','#E24B8A','#3B6D11','#555'];
 const SK = 'soccerTracker_v6';
@@ -575,6 +593,7 @@ if (activeProfileId && !getProfile(activeProfileId)) activeProfileId = null;
 if (!activeProfileId && db.profiles.length) saveActive(db.profiles[0].id);
 
 buildSliders();
+buildDrillList();
 buildColorSwatches();
 refreshProfileBar();
 updateDataBar();
@@ -840,6 +859,44 @@ function getSkillValues() {
 }
 function resetSliders() { SKILLS.forEach(s => pickSkill(s.replace(' ','-'), 5)); }
 
+// ── DRILL CHECKLIST ───────────────────────────────────────
+function buildDrillList() {
+  document.getElementById('drill-list').innerHTML = DRILLS.map(d => {
+    const id = 'drill-' + d.replace(/\s+/g, '-').toLowerCase();
+    return `<div class="drill-row">
+      <input type="checkbox" class="drill-cb" id="${id}" onchange="toggleDrill('${id}')">
+      <label class="drill-label" for="${id}">${d}</label>
+      <div class="drill-min-wrap" id="${id}-wrap">
+        <input type="number" class="drill-min-input" id="${id}-mins" min="1" max="120" placeholder="0">
+        <span class="drill-min-label">mins</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function toggleDrill(id) {
+  const cb = document.getElementById(id);
+  const lbl = cb.nextElementSibling;
+  const wrap = document.getElementById(id + '-wrap');
+  lbl.classList.toggle('checked', cb.checked);
+  wrap.classList.toggle('visible', cb.checked);
+  if (!cb.checked) document.getElementById(id + '-mins').value = '';
+}
+function getDrillValues() {
+  return DRILLS.map(d => {
+    const id = 'drill-' + d.replace(/\s+/g, '-').toLowerCase();
+    const cb = document.getElementById(id);
+    const mins = parseInt(document.getElementById(id + '-mins').value) || 0;
+    return { name: d, done: cb && cb.checked, mins: cb && cb.checked ? mins : 0 };
+  }).filter(x => x.done);
+}
+function resetDrills() {
+  DRILLS.forEach(d => {
+    const id = 'drill-' + d.replace(/\s+/g, '-').toLowerCase();
+    const cb = document.getElementById(id);
+    if (cb) { cb.checked = false; toggleDrill(id); }
+  });
+}
+
 let currentRating=0;
 function setRating(v){currentRating=v;document.querySelectorAll('#stars .star').forEach(s=>s.classList.toggle('on',parseInt(s.dataset.v)<=v));}
 function updateFitnessBadge(val){const b=document.getElementById('fitness-badge');b.className='fitness-badge';if(!val){b.style.display='none';return;}b.classList.add('fitness-'+val);b.textContent=val;b.style.display='inline-block';}
@@ -879,15 +936,16 @@ function saveSession() {
     type: document.getElementById('t-type').value,
     duration: document.getElementById('t-duration').value,
     intensity: parseInt(document.getElementById('t-intensity').value),
-    drills: document.getElementById('t-drills').value,
+    drills: getDrillValues(),
     worked: document.getElementById('t-worked').value,
     coachFeedback: document.getElementById('t-coach').value,
     personalNotes: document.getElementById('t-personal').value
   });
   save();
-  ['t-drills','t-worked','t-coach','t-personal','t-duration'].forEach(id=>document.getElementById(id).value='');
+  ['t-worked','t-coach','t-personal','t-duration'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('t-type').value=''; document.getElementById('t-date').value=today;
   document.getElementById('t-intensity').value=5; document.getElementById('t-intensity-val').textContent='5';
+  resetDrills();
   updateDataBar(); showTab('training');
 }
 
@@ -1033,10 +1091,10 @@ function renderTrainingList() {
           ${isConf?`<div class="confirm-row"><span style="font-size:12px;color:#666;">Remove?</span><button class="confirm-yes" onclick="deleteSession(${s.id})">Yes</button><button class="confirm-no" onclick="confirmingDeleteSession=null;renderTrainingList()">No</button></div>`:`<button class="delete-btn" onclick="event.stopPropagation();confirmingDeleteSession=${s.id};renderTrainingList()">Remove</button>`}
         </div>
       </div>
-      ${(s.drills||s.worked)?`<div class="card-tags">
+      <div class="card-tags">
         ${s.type?`<span class="tag" style="background:${ts.bg};color:${ts.col};">${s.type}</span>`:''}
-        ${s.drills?`<span class="tag">${s.drills.slice(0,45)}${s.drills.length>45?'…':''}</span>`:''}
-      </div>`:''}
+        ${Array.isArray(s.drills)&&s.drills.length?`<span class="tag">${s.drills.length} drill${s.drills.length!==1?'s':''}: ${s.drills.map(d=>d.name).join(', ').slice(0,40)}${s.drills.map(d=>d.name).join(', ').length>40?'…':''}</span>`:typeof s.drills==='string'&&s.drills?`<span class="tag">${s.drills.slice(0,45)}${s.drills.length>45?'…':''}</span>`:''}
+      </div>
     </div>`;
   }).join('');
 }
@@ -1057,7 +1115,7 @@ function renderSessionDetail(i) {
         ${s.duration?`<div class="detail-grid-item"><label>Duration</label><p>${s.duration} mins</p></div>`:''}
         ${s.intensity?`<div class="detail-grid-item"><label>Intensity</label><p>${s.intensity}/10</p></div>`:''}
       </div>
-      ${s.drills?`<div class="detail-row"><label>Drills & focus areas</label><p>${s.drills}</p></div>`:''}
+      ${Array.isArray(s.drills)&&s.drills.length?`<div class="detail-row"><label>Drills completed (${s.drills.length})</label><div style="margin-top:6px;">${s.drills.map(d=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid #f0f0ee;font-size:14px;"><span>✓ ${d.name}</span>${d.mins?`<span style="color:#888;font-size:13px;">${d.mins} min${d.mins!==1?'s':''}</span>`:''}</div>`).join('')}</div></div>`:typeof s.drills==='string'&&s.drills?`<div class="detail-row"><label>Drills & focus areas</label><p>${s.drills}</p></div>`:''}
       ${s.worked?`<div class="detail-row"><label>What I worked on</label><p>${s.worked}</p></div>`:''}
       ${s.coachFeedback?`<div class="detail-row"><label>Coach's feedback</label><p>${s.coachFeedback}</p></div>`:''}
       ${s.personalNotes?`<div class="detail-row"><label>Personal notes</label><p>${s.personalNotes}</p></div>`:''}
